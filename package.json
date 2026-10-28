@@ -1,0 +1,11 @@
+{
+  "name": "hermes-whoami",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Show which Hermes profile the composer will create a session on",
+  "license": "MIT",
+  "scripts": {
+    "check": "node --check plugin.js"
+  }
+}
