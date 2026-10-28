@@ -1,4 +1,5 @@
 import { host, useValue } from '@hermes/plugin-sdk';
+import { useSyncExternalStore } from 'react';
 import { jsx } from 'react/jsx-runtime';
 
 const PRESETS = [
@@ -16,11 +17,13 @@ const PREFS_KEY = 'whoami.prefs';
 const DEFAULT_MODE = 'profile';
 const ACCENT = 'var(--ui-accent)';
 
-let REGISTER_CTX = null;
-
 const TEXT_SECONDARY = 'var(--ui-text-secondary)';
 const TEXT_TERTIARY = 'var(--ui-text-tertiary)';
 const STROKE_SECONDARY = 'var(--ui-stroke-secondary)';
+
+let REGISTER_CTX = null;
+let prefsCache = null;
+const listeners = new Set();
 
 function normaliseProfile(value) {
   if (typeof value === 'string') {
@@ -63,16 +66,43 @@ function normalisePrefs(raw) {
   return { mode, colors };
 }
 
-function readPrefs(ctx) {
-  try {
-    return normalisePrefs(ctx.storage.get(PREFS_KEY));
-  } catch (error) {
-    return normalisePrefs(null);
-  }
+function emit() {
+  for (const listener of listeners) listener();
 }
 
-function writePrefs(ctx, prefs) {
-  ctx.storage.set(PREFS_KEY, normalisePrefs(prefs));
+function subscribe(listener) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getPrefs() {
+  if (prefsCache === null) {
+    let raw = null;
+    if (REGISTER_CTX) {
+      try {
+        raw = REGISTER_CTX.storage.get(PREFS_KEY, null);
+      } catch (error) {
+        raw = null;
+      }
+    }
+    prefsCache = normalisePrefs(raw);
+  }
+  return prefsCache;
+}
+
+function setPrefs(next) {
+  const value = normalisePrefs(next);
+  if (REGISTER_CTX) {
+    REGISTER_CTX.storage.set(PREFS_KEY, value);
+  }
+  prefsCache = value;
+  emit();
+}
+
+function usePrefs() {
+  return useSyncExternalStore(subscribe, getPrefs, getPrefs);
 }
 
 function colourFor(prefs, name) {
@@ -122,7 +152,7 @@ function dot(colour, size) {
 
 function ComposerPill() {
   const profile = normaliseProfile(useValue(host.state.profile));
-  const prefs = readPrefs(REGISTER_CTX);
+  const prefs = usePrefs();
   const colour = colourFor(prefs, profile);
   const label = profile || 'no profile';
 
@@ -138,15 +168,14 @@ function ComposerPill() {
         const current = activeProfileName();
         if (current === null) {
           host.notify({
-            level: 'warning',
+            kind: 'warning',
             message: 'Whoami: no active profile. A new session needs an explicit profile.',
           });
           return;
         }
-        const currentPrefs = readPrefs(REGISTER_CTX);
-        const currentColour = colourFor(currentPrefs, current);
+        const currentColour = colourFor(getPrefs(), current);
         host.notify({
-          level: 'info',
+          kind: 'info',
           message: `Whoami: active profile "${current}" (colour ${currentColour.label}).`,
         });
       },
@@ -172,7 +201,8 @@ function ComposerPill() {
 
 function StatusDot() {
   const profile = normaliseProfile(useValue(host.state.profile));
-  const colour = colourFor(readPrefs(REGISTER_CTX), profile);
+  const prefs = usePrefs();
+  const colour = colourFor(prefs, profile);
   return jsx(
     'button',
     {
@@ -181,7 +211,7 @@ function StatusDot() {
       'aria-label': profile === null ? 'Whoami: no profile' : `Whoami: ${profile}`,
       onClick: () => {
         host.notify({
-          level: profile === null ? 'warning' : 'info',
+          kind: profile === null ? 'warning' : 'info',
           message:
             profile === null
               ? 'Whoami: no active profile. A new session needs an explicit profile.'
@@ -321,29 +351,24 @@ function ProfileRow(props) {
 }
 
 function WhoamiPane() {
-  const prefs = readPrefs(REGISTER_CTX);
+  const prefs = usePrefs();
   const profile = normaliseProfile(useValue(host.state.profile));
   const names = profileNames(prefs, profile);
 
   const pick = (name, presetId) => {
-    const current = readPrefs(REGISTER_CTX);
-    current.colors[name] = presetId;
-    writePrefs(REGISTER_CTX, current);
-    host.notify({ level: 'info', message: `Whoami: colour for "${name}" set to ${presetId}.` });
+    const current = getPrefs();
+    setPrefs({ mode: current.mode, colors: { ...current.colors, [name]: presetId } });
   };
 
   const reset = (name) => {
-    const current = readPrefs(REGISTER_CTX);
-    delete current.colors[name];
-    writePrefs(REGISTER_CTX, current);
-    host.notify({ level: 'info', message: `Whoami: colour override cleared for "${name}".` });
+    const current = getPrefs();
+    const colors = { ...current.colors };
+    delete colors[name];
+    setPrefs({ mode: current.mode, colors });
   };
 
   const setMode = (mode) => {
-    const current = readPrefs(REGISTER_CTX);
-    current.mode = mode === 'accent' ? 'accent' : DEFAULT_MODE;
-    writePrefs(REGISTER_CTX, current);
-    host.notify({ level: 'info', message: `Whoami: mode set to ${current.mode}.` });
+    setPrefs({ mode: mode === 'accent' ? 'accent' : DEFAULT_MODE, colors: getPrefs().colors });
   };
 
   return jsx(
@@ -378,47 +403,54 @@ export default {
     }
 
     REGISTER_CTX = ctx;
+    prefsCache = null;
 
     ctx.register({
+      id: 'composer-pill',
       area: 'composer.actions',
       order: 20,
-      component: ComposerPill,
+      render: () => jsx(ComposerPill, {}),
     });
 
     ctx.register({
+      id: 'status-chip',
       area: 'statusBar.right',
       order: 120,
-      component: StatusDot,
+      render: () => jsx(StatusDot, {}),
     });
 
     ctx.register({
+      id: 'palette-show',
       area: 'palette',
-      id: 'whoami.show',
-      label: 'Whoami: show active profile',
-      run() {
-        const profile = activeProfileName();
-        if (profile === null) {
+      data: {
+        id: 'whoami.show',
+        action: 'whoami.show',
+        label: 'Whoami: show active profile',
+        keywords: ['profile', 'whoami', 'scope'],
+        run() {
+          const profile = activeProfileName();
+          if (profile === null) {
+            host.notify({
+              kind: 'warning',
+              message: 'Whoami: no active profile. A new session needs an explicit profile.',
+            });
+            return;
+          }
+          const colour = colourFor(getPrefs(), profile);
           host.notify({
-            level: 'warning',
-            message: 'Whoami: no active profile. A new session needs an explicit profile.',
+            kind: 'info',
+            message: `Whoami: active profile "${profile}" (colour ${colour.label}).`,
           });
-          return;
-        }
-        const prefs = readPrefs(ctx);
-        const colour = colourFor(prefs, profile);
-        host.notify({
-          level: 'info',
-          message: `Whoami: active profile "${profile}" (colour ${colour.label}).`,
-        });
+        },
       },
     });
 
     ctx.register({
+      id: 'settings-pane',
       area: 'panes',
-      placement: 'right',
-      width: '240px',
       title: 'Whoami',
-      component: WhoamiPane,
+      data: { placement: 'right', width: '240px' },
+      render: () => jsx(WhoamiPane, {}),
     });
   },
 };
