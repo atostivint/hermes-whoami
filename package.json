@@ -6,6 +6,7 @@
   "description": "Show which Hermes profile the composer will create a session on",
   "license": "MIT",
   "scripts": {
-    "check": "node --check plugin.js"
+    "check": "node --check plugin.js",
+    "smoke": "node tests/smoke.mjs"
   }
 }

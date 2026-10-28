@@ -38,6 +38,10 @@ Preferences live in the plugin storage namespace under the key `whoami.prefs` an
 - Requires Hermes Desktop 0.21.5 or newer for the `composer.actions` area. If only the status-bar dot appears, the composer seam is missing on that build.
 - The pill and the status-bar dot read the same atom. If the pill shows a stale profile after a switch, open an issue with the values of `host.state.profile`.
 
+## Development
+
+Run `npm run check` to parse `plugin.js` without executing it. Run `npm run smoke` to exercise registration, rendering and colour logic offline with plain Node, no Hermes install and no React required. CI (`.github/workflows/smoke.yml`) runs both on every push and pull request.
+
 ## Uninstall
 
 Delete the `whoami` folder from `$HERMES_HOME/desktop-plugins/` and reload desktop plugins.
