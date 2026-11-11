@@ -6,6 +6,16 @@ A Hermes Desktop plugin that shows which Hermes profile the composer will create
 
 Whoami adds a coloured pill to the composer toolbar, next to the model pill, with the name of the active profile. It also adds a small dot to the status bar. Both read the same profile state, so the profile a new session will use is visible at a glance. When the app is in the all-profiles scope there is no active profile, and the pill shows a grey `no profile` instead.
 
+## Screenshots
+
+The pill takes the identity colour Hermes Desktop already gives the profile, so it matches the sidebar rail.
+
+![Composer pill showing the sandbox profile](docs/screenshots/composer-sandbox.png)
+
+![Composer pill showing the astro profile](docs/screenshots/composer-astro.png)
+
+![Composer pill showing the default profile](docs/screenshots/composer-default.png)
+
 ## Why
 
 Hermes Desktop does not label the profile you are drafting in. With several profiles configured it is easy to start a session in the wrong one and only notice later. Whoami makes the target profile explicit before you send anything.
