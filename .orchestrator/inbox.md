@@ -10,6 +10,7 @@ Les décisions qui expliquent ces items sont dans `decisions.md`.
 | W-8 | Aligner sur `resolveProfileColor` : `default` neutre avant l'override, nom trimé avant tout | desktop/plugin.js, tests/smoke.mjs | done | renvoi de la revue avant commit ; rouge→vert vérifié deux fois |
 | W-9 | Les enfants `jsx` passaient en argument positionnel : React les lisait comme `key`, d'où une pastille vide et un point invisible | desktop/plugin.js, tests/smoke.mjs | done | vérifié dans l'app (pastille `● sandbox` visible) ; 39 PASS ; commit `7686b75` |
 | P-1 | Entrée catalogue `plugin-catalog/whoami.yaml` épinglée sur `b923057`, branche `catalog/whoami` poussée sur le fork | — | done | validateur structurel OK, 3 URLs d'images en 200, PR non ouverte (choix utilisateur) |
+| P-4 | Illustration : `docs/hero.png` (1280×640) et `docs/icon.png` (512×512) dessinés en code, palette de l'app | README.md, docs/hero.png, docs/icon.png | done | commit `3bece53` ; catalogue ré-épinglé dessus avec `image: docs/hero.png` ; icône non consommée (aucun champ `icon` dans le manifeste ni le schéma catalogue) |
 | W-2 | `setPrefs` sans `try/catch` ni test de `storage` : un stockage absent qui jette casse le panneau | desktop/plugin.js | ready | audit 2026-11-11, sévérité haute |
 | W-3 | Aperçu du panneau faux en mode accent (toutes les lignes prennent `var(--ui-accent)`) | desktop/plugin.js | ready | audit, moyen |
 | W-4 | Swatches sans `aria-pressed`, `aria-label` identique pour tous les profils | desktop/plugin.js | ready | audit, moyen |
