@@ -6,11 +6,11 @@ de conflit du moment.
 
 | domain | session | last item | files in play | status |
 |---|---|---|---|---|
-| composer-ui | ses_e33ca883affeSn7jqi1RKHdGRY | W-1 couleur d'identité du client | desktop/plugin.js (`colourFor`, `dot`) | done — 37 PASS |
-| prefs-pane | ses_e33b09552ffedK9Gd13Xo3O7xw | W-8 alignement sur `resolveProfileColor` | desktop/plugin.js (`clientColour`) | done — 37 PASS |
-| tests-ci | ses_e33b09552ffedK9Gd13Xo3O7xw | W-8 (checks `default` neutre + trim) | tests/smoke.mjs | done — 37 PASS |
+| composer-ui | ses_e338d7ea4ffeOh4GhT7Zi77quq | W-9 rendu des enfants (`h()`) | desktop/plugin.js (`h`, `dot`, `ComposerPill`) | done — 39 PASS, vérifié à l'écran |
+| prefs-pane | ses_e33b09552ffedK9Gd13Xo3O7xw | W-8 alignement sur `resolveProfileColor` | desktop/plugin.js (`clientColour`) | done — 39 PASS |
+| tests-ci | ses_e338d7ea4ffeOh4GhT7Zi77quq | W-9 (double `jsx` à la vraie signature) | tests/smoke.mjs | done — 39 PASS |
 | plugin-shell | — | aucun | — | idle |
-| docs-release | ses_e33b8fb81ffewKExwH3r2Jnle1 | W-7 restructuration `desktop/plugin.js` | README.md, CHANGELOG.md, package.json, .github/workflows/smoke.yml, AGENTS.md | done — 36 PASS, non commité |
+| docs-release | ses_e33814ce7ffe3sLS32UOQi9mHC | P-1 captures + entrée catalogue | README.md, docs/screenshots/, plugin.yaml | done — 3 URLs d'images en 200 |
 
 ## Règles
 

@@ -20,5 +20,11 @@ absente ou illisible.
 
 2026-11-11 — la publication passe par le catalogue de plugins Hermes (`hermes-agent/plugin-catalog`)
 et non par une release GitHub seule — l'utilisateur veut que le plugin soit téléchargeable depuis
-l'application — format du catalogue à vérifier avant d'écrire quoique ce soit (P-1).
+l'application — entrée épinglée sur `b923057`, branche `catalog/whoami` poussée sur le fork, PR
+laissée à l'utilisateur.
+
+2026-11-11 — `jsx` de `react/jsx-runtime` prend `(type, props, key)` : les enfants vont dans
+`props.children`. Tout le fichier les passait en 3ᵉ argument, donc React les jetait — la pastille
+s'affichait vide depuis le premier commit. Corrigé par un helper `h()` et un double de test à la
+vraie signature (`check('jsx double rejects positional children')`).
 
