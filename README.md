@@ -47,15 +47,11 @@ Then open the command palette (`Command-K`, or `Ctrl+K` on Windows) and run
 
 `$HERMES_HOME` is usually `~/.hermes`. On a Linux server it is normally `/var/lib/hermes-agent/.hermes`. If you are unsure, open Settings -> Plugins, which shows the exact folder Hermes reads plugins from.
 
-## Configure
+## Colours
 
-Open the Whoami pane (right side) to set colours:
+The pill takes the profile's identity colour from Hermes Desktop, the same colour the sidebar rail shows, so the two always agree. There is no settings pane and nothing to configure: the plugin ships no colour UI.
 
-- **Mode** toggles between `accent` and `per-profile`. In `accent` mode the pill dot uses the app accent colour. In `per-profile` mode, the default, each profile gets its own colour.
-- **Swatches** set an explicit colour for a profile. Pick one of eight presets; the choice is stored by profile name.
-- **Reset** clears the override for that profile.
-
-The colour is resolved in this order, first hit wins:
+The colour is resolved in this order, first hit wins — the built-in palette is the last resort:
 
 1. `accent` mode, which paints the pill dot with `var(--ui-accent)` for every profile.
 2. A preset or hex stored for that profile in `whoami.prefs`.
@@ -63,11 +59,10 @@ The colour is resolved in this order, first hit wins:
    (`hermes.desktop.profileColors` in `localStorage`), else the hue derived from the profile name.
 4. The built-in eight-colour palette, used when the host build exports no `profileColor`.
 
-The root profile `default` gets no colour from the client — it renders that profile untagged and
-ignores a hand-picked override for it — so it shows the neutral `mono` dot unless a swatch is
-stored for it.
+Steps 1 and 2 stay honoured when an older install left a `whoami.prefs` behind — `{ "mode": "profile", "colors": { "work": "cyan" } }`, in the plugin storage namespace. Nothing in the current version writes that key, so a fresh install always shows the identity colour.
 
-Preferences live in the plugin storage namespace under the key `whoami.prefs` and look like `{ "mode": "profile", "colors": { "work": "cyan" } }`.
+The root profile `default` gets no colour from the client — it renders that profile untagged and
+ignores a hand-picked override for it — so it shows the neutral `mono` dot.
 
 ## Limitations
 
@@ -75,8 +70,8 @@ Preferences live in the plugin storage namespace under the key `whoami.prefs` an
 - Requires Hermes Desktop 0.21.5 or newer for the `composer.actions` area the pill is mounted in.
 - If the pill shows a stale profile after a switch, open an issue with the values of `host.state.profile`.
 - A colour picked in the rail does not repaint an already-mounted pill until the next render
-  (profile switch, preferences change or reload): a same-document `localStorage` write fires no
-  event, and the plugin reads that key only while rendering.
+  (profile switch or reload): a same-document `localStorage` write fires no event, and the plugin
+  reads that key only while rendering.
 
 ## Development
 

@@ -169,10 +169,6 @@ function collect(node, predicate) {
   return found;
 }
 
-function findButtons(node) {
-  return collect(node, (n) => n.type === 'button');
-}
-
 function textOf(node) {
   if (typeof node === 'string') return node;
   if (!node || !node.children) return '';
@@ -210,16 +206,13 @@ function check(name, condition, detail) {
 plugin.register(ctx);
 
 check('plugin.id is whoami', plugin.id === 'whoami', String(plugin.id));
-check('registers three contributions', contributions.length === 3, String(contributions.length));
+check('registers two contributions', contributions.length === 2, String(contributions.length));
 
 const areas = contributions.map((c) => c.area);
-for (const area of ['composer.actions', 'palette', 'panes']) {
+for (const area of ['composer.actions', 'palette']) {
   check(`contribution area ${area}`, areas.includes(area), areas.join(', '));
 }
 check('no contribution targets the status bar', !areas.includes('statusBar.right'), areas.join(', '));
-
-const pane = byArea('panes');
-check('pane placement is right', pane && pane.data && pane.data.placement === 'right');
 
 check(
   'every contribution has id and area',
@@ -332,53 +325,35 @@ check(
   String(otherColour),
 );
 
-const presetLabels = ['mono', 'green', 'cyan', 'violet', 'pink', 'red', 'orange', 'nous'];
 const presetHexes = ['#9CA3AF', '#3ECF8E', '#22D3EE', '#A78BFA', '#F472B6', '#EF4444', '#FB923C', '#6EA8FE'];
-const paneNode = render('settings-pane');
-const swatches = findButtons(paneNode).filter(
-  (b) => b.props['aria-label'] !== undefined && presetLabels.includes(b.props['aria-label']),
-);
-check('settings pane renders 8 swatches with aria-label', swatches.length === 8, String(swatches.length));
-check(
-  'swatches cover every preset label',
-  presetLabels.every((label) => swatches.some((b) => b.props['aria-label'] === label)),
-);
+// No surface writes `whoami.prefs` any more, but older installs still carry one: the pill must
+// keep honouring `mode` and `colors`, so the checks seed the key instead of clicking swatch
+// buttons that no longer exist.
+const seededPill = (prefs, sdk) =>
+  colourOf(loadContributions(sdk || hermesSdk, localStorageDouble, prefs)('composer-pill'));
+const greenPrefs = { mode: 'profile', colors: { atlas: 'green' } };
 
 const originalColour = pillColour;
 
-const greenSwatch = findButtons(render('settings-pane')).find((b) => b.props['aria-label'] === 'green');
-check('green swatch exists', Boolean(greenSwatch));
-greenSwatch.props.onClick();
-check('pill colour is green after swatch click', colourOf(render('composer-pill')) === '#3ECF8E', String(colourOf(render('composer-pill'))));
-const storedAfterGreen = storage.get('whoami.prefs', null);
 check(
-  'storage records colors.atlas === green',
-  Boolean(storedAfterGreen && storedAfterGreen.colors && storedAfterGreen.colors.atlas === 'green'),
-  JSON.stringify(storedAfterGreen),
+  'a stored green preset paints the pill green',
+  seededPill(greenPrefs) === '#3ECF8E',
+  String(seededPill(greenPrefs)),
 );
-
-const resetButton = findButtons(render('settings-pane')).find((b) => textOf(b).trim() === 'reset');
-check('reset button exists', Boolean(resetButton));
-resetButton.props.onClick();
 check(
-  'reset restores the original colour',
-  colourOf(render('composer-pill')) === originalColour,
-  String(colourOf(render('composer-pill'))),
+  'a stored hex value paints the pill with that hex',
+  seededPill({ mode: 'profile', colors: { atlas: '#abcdef' } }) === '#abcdef',
+  String(seededPill({ mode: 'profile', colors: { atlas: '#abcdef' } })),
 );
-const storedAfterReset = storage.get('whoami.prefs', null);
-check(
-  'reset removes colors.atlas',
-  Boolean(storedAfterReset && storedAfterReset.colors && !Object.prototype.hasOwnProperty.call(storedAfterReset.colors, 'atlas')),
-  JSON.stringify(storedAfterReset),
-);
-
-const modeButton = findButtons(render('settings-pane')).find((b) => textOf(b).trim() === 'per-profile');
-check('mode button shows per-profile', Boolean(modeButton));
-modeButton.props.onClick();
 check(
   'accent mode paints the pill with var(--ui-accent)',
-  colourOf(render('composer-pill')) === 'var(--ui-accent)',
-  String(colourOf(render('composer-pill'))),
+  seededPill({ mode: 'accent', colors: {} }) === 'var(--ui-accent)',
+  String(seededPill({ mode: 'accent', colors: {} })),
+);
+check(
+  'no stored swatch restores the original colour',
+  seededPill({ mode: 'profile', colors: {} }) === originalColour,
+  `${seededPill({ mode: 'profile', colors: {} })} vs ${originalColour}`,
 );
 
 profile.set(null);
@@ -409,10 +384,6 @@ check(
 );
 
 // --- client identity colour ---
-// The accent check above left the pane in accent mode; go back to per-profile first.
-const backToPerProfile = findButtons(render('settings-pane')).find((b) => textOf(b).trim() === 'accent');
-backToPerProfile.props.onClick();
-
 const clientExpected = sdkProfileColor('atlas');
 const clientPillColour = colourOf(render('composer-pill'));
 check(
@@ -428,16 +399,12 @@ check(
   String(colourOf(render('composer-pill'))),
 );
 
-const greenClientSwatch = findButtons(render('settings-pane')).find((b) => b.props['aria-label'] === 'green');
-greenClientSwatch.props.onClick();
+const greenClientColour = seededPill(greenPrefs);
 check(
   'explicit swatch still beats the client colour',
-  colourOf(render('composer-pill')) === '#3ECF8E',
-  String(colourOf(render('composer-pill'))),
+  greenClientColour === '#3ECF8E',
+  String(greenClientColour),
 );
-
-const resetClientSwatch = findButtons(render('settings-pane')).find((b) => textOf(b).trim() === 'reset');
-resetClientSwatch.props.onClick();
 clientColorMap.clear();
 
 const fallbackPillColour = colourOf(loadContributions({}, localStorageDouble)('composer-pill'));
@@ -491,29 +458,10 @@ const spacedOverrideColour = colourOf(render('composer-pill'));
 clientColorMap.clear();
 profile.set('atlas');
 
-// The pill trims through normaliseProfile before it resolves a colour, so it cannot see this
-// bug: the pane keys its rows by the stored profile name, and a legacy " atlas " key reaches the
-// resolver untrimmed. That row is what the trim in clientColour actually protects.
-const spacedPrefs = { mode: 'profile', colors: { ' atlas ': '' } };
-const rowColour = (node) => {
-  const row = collect(
-    node,
-    (n) => n.type === 'div' && (n.children || []).some((c) => c && c.type === 'span' && textOf(c) === ' atlas '),
-  )[0];
-  return row ? colourOf(row) : null;
-};
-const spacedHueRow = rowColour(loadContributions(hermesSdk, localStorageDouble, spacedPrefs)('settings-pane'));
-clientColorMap.set('hermes.desktop.profileColors', JSON.stringify({ atlas: '#123456' }));
-const spacedOverrideRow = rowColour(loadContributions(hermesSdk, localStorageDouble, spacedPrefs)('settings-pane'));
-clientColorMap.clear();
-
 check(
   'client colour trims the profile name',
-  spacedPillColour === sdkProfileColor('atlas') &&
-    spacedOverrideColour === '#123456' &&
-    spacedHueRow === sdkProfileColor('atlas') &&
-    spacedOverrideRow === '#123456',
-  `pill ${spacedPillColour} vs ${sdkProfileColor('atlas')}, override ${spacedOverrideColour} vs #123456, row ${spacedHueRow} vs ${sdkProfileColor('atlas')}, row override ${spacedOverrideRow}`,
+  spacedPillColour === sdkProfileColor('atlas') && spacedOverrideColour === '#123456',
+  `pill ${spacedPillColour} vs ${sdkProfileColor('atlas')}, override ${spacedOverrideColour} vs #123456`,
 );
 profile.set('atlas');
 clientColorMap.clear();
