@@ -10,7 +10,7 @@ Whoami adds a coloured pill to the composer toolbar, next to the model pill, wit
 
 The pill takes the identity colour Hermes Desktop already gives the profile, so it matches the sidebar rail.
 
-![The pill for three profiles, astro in pink, sandbox in indigo and default in grey, each with its identity colour](docs/hero.png)
+![The Hermes Desktop composer, with the whoami pill showing the sandbox profile and its indigo dot next to the model pill](docs/hero.png)
 
 ![Composer pill showing the sandbox profile](docs/screenshots/composer-sandbox.png)
 
