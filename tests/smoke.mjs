@@ -210,12 +210,13 @@ function check(name, condition, detail) {
 plugin.register(ctx);
 
 check('plugin.id is whoami', plugin.id === 'whoami', String(plugin.id));
-check('exactly 4 contributions', contributions.length === 4, String(contributions.length));
+check('registers three contributions', contributions.length === 3, String(contributions.length));
 
 const areas = contributions.map((c) => c.area);
-for (const area of ['composer.actions', 'statusBar.right', 'palette', 'panes']) {
+for (const area of ['composer.actions', 'palette', 'panes']) {
   check(`contribution area ${area}`, areas.includes(area), areas.join(', '));
 }
+check('no contribution targets the status bar', !areas.includes('statusBar.right'), areas.join(', '));
 
 const pane = byArea('panes');
 check('pane placement is right', pane && pane.data && pane.data.placement === 'right');

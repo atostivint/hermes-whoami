@@ -2,6 +2,6 @@
 
 ## 0.1.0
 
-- Initial release: composer pill, status-bar dot, and configurable per-profile colours.
+- Initial release: a composer pill showing the active profile, with per-profile colours configurable from the Whoami pane.
 - Offline smoke test and GitHub Actions workflow.
 - Plugin entry moved to `desktop/plugin.js` so the catalog installer ships it as the plugin's `plugin.js`.

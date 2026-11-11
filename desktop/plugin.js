@@ -269,41 +269,6 @@ function ComposerPill() {
   );
 }
 
-function StatusDot() {
-  const profile = normaliseProfile(useValue(host.state.profile));
-  const prefs = usePrefs();
-  const colour = colourFor(prefs, profile);
-  return h(
-    'button',
-    {
-      type: 'button',
-      title: profile === null ? 'Whoami: no profile' : `Whoami: ${profile}`,
-      'aria-label': profile === null ? 'Whoami: no profile' : `Whoami: ${profile}`,
-      onClick: () => {
-        host.notify({
-          kind: profile === null ? 'warning' : 'info',
-          message:
-            profile === null
-              ? 'Whoami: no active profile. A new session needs an explicit profile.'
-              : `Whoami: active profile "${profile}".`,
-        });
-      },
-      style: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '18px',
-        height: '18px',
-        padding: '0',
-        border: 'none',
-        background: 'transparent',
-        cursor: 'pointer',
-      },
-    },
-    dot(colour, '8px'),
-  );
-}
-
 function ModeRow(props) {
   const prefs = props.prefs;
   const nextMode = prefs.mode === 'accent' ? 'profile' : 'accent';
@@ -481,13 +446,6 @@ export default {
       area: 'composer.actions',
       order: 20,
       render: () => h(ComposerPill, {}),
-    });
-
-    ctx.register({
-      id: 'status-chip',
-      area: 'statusBar.right',
-      order: 120,
-      render: () => h(StatusDot, {}),
     });
 
     ctx.register({

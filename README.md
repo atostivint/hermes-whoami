@@ -4,7 +4,7 @@ A Hermes Desktop plugin that shows which Hermes profile the composer will create
 
 ## What it does
 
-Whoami adds a coloured pill to the composer toolbar, next to the model pill, with the name of the active profile. It also adds a small dot to the status bar. Both read the same profile state, so the profile a new session will use is visible at a glance. When the app is in the all-profiles scope there is no active profile, and the pill shows a grey `no profile` instead.
+Whoami adds one surface: a coloured pill to the composer toolbar, next to the model pill, with the name of the active profile. The pill reads the live profile state, so the profile a new session will use is visible at a glance. When the app is in the all-profiles scope there is no active profile, and the pill shows a grey `no profile` instead.
 
 ## Screenshots
 
@@ -51,13 +51,13 @@ Then open the command palette (`Command-K`, or `Ctrl+K` on Windows) and run
 
 Open the Whoami pane (right side) to set colours:
 
-- **Mode** toggles between `accent` and `per-profile`. In `accent` mode the dot uses the app accent colour. In `per-profile` mode, the default, each profile gets its own colour.
+- **Mode** toggles between `accent` and `per-profile`. In `accent` mode the pill dot uses the app accent colour. In `per-profile` mode, the default, each profile gets its own colour.
 - **Swatches** set an explicit colour for a profile. Pick one of eight presets; the choice is stored by profile name.
 - **Reset** clears the override for that profile.
 
 The colour is resolved in this order, first hit wins:
 
-1. `accent` mode, which paints the dot with `var(--ui-accent)` for every profile.
+1. `accent` mode, which paints the pill dot with `var(--ui-accent)` for every profile.
 2. A preset or hex stored for that profile in `whoami.prefs`.
 3. The colour Hermes Desktop itself shows for the profile: a hand-picked override from the rail
    (`hermes.desktop.profileColors` in `localStorage`), else the hue derived from the profile name.
@@ -72,8 +72,8 @@ Preferences live in the plugin storage namespace under the key `whoami.prefs` an
 ## Limitations
 
 - **Read-only by design.** The SDK exposes `host.state.profile` but no profile-switch verb, so Whoami reports the scope and never changes it.
-- Requires Hermes Desktop 0.21.5 or newer for the `composer.actions` area. If only the status-bar dot appears, the composer seam is missing on that build.
-- The pill and the status-bar dot read the same atom. If the pill shows a stale profile after a switch, open an issue with the values of `host.state.profile`.
+- Requires Hermes Desktop 0.21.5 or newer for the `composer.actions` area the pill is mounted in.
+- If the pill shows a stale profile after a switch, open an issue with the values of `host.state.profile`.
 - A colour picked in the rail does not repaint an already-mounted pill until the next render
   (profile switch, preferences change or reload): a same-document `localStorage` write fires no
   event, and the plugin reads that key only while rendering.

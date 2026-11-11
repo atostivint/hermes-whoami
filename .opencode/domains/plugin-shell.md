@@ -11,14 +11,17 @@ C'est la porte d'entrée ; rien d'autre ne s'exécute si ce domaine est cassé.
 
 ## Contrat à ne pas casser
 
-`register(ctx)` enregistre **exactement quatre** contributions, avec ces identifiants et zones :
+`register(ctx)` enregistre **exactement trois** contributions, avec ces identifiants et zones :
 
 | id | area | détail |
 |---|---|---|
-| `composer-pill` | `composer.actions` | `order: 20`, `render: () => jsx(ComposerPill, {})` |
-| `status-chip` | `statusBar.right` | `order: 120`, `render: () => jsx(StatusDot, {})` |
+| `composer-pill` | `composer.actions` | `order: 20`, `render: () => h(ComposerPill, {})` |
 | `palette-show` | `palette` | `data: { id: 'whoami.show', action, label, keywords, run() }` |
 | `settings-pane` | `panes` | `title: 'Whoami'`, `data: { placement: 'right', width: '240px' }` |
+
+- La barre d'état n'est **plus** une surface du plugin (décision du 2026-11-11) : ne pas y
+  réenregistrer de contribution sans arbitrage utilisateur. Le smoke le refuse
+  (`no contribution targets the status bar`).
 
 - La forme d'une contribution est `{ id, area, order?, render? , data? }`. **Jamais de clé
   `component`** : le smoke refuse explicitement cette forme.
