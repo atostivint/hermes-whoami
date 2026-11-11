@@ -5,7 +5,7 @@ C'est la porte d'entrée ; rien d'autre ne s'exécute si ce domaine est cassé.
 
 ## Fichiers possédés
 
-- `plugin.js` — de `export default {` à la fin du fichier (≈ lignes 394-456) : `id`, `name`,
+- `desktop/plugin.js` — de `export default {` à la fin du fichier (≈ 446-508) : `id`, `name`,
   `description`, `register(ctx)`.
 - `plugin.yaml` — nom, version, `requires_hermes`, `provides_*`, `tags`.
 
@@ -30,7 +30,7 @@ C'est la porte d'entrée ; rien d'autre ne s'exécute si ce domaine est cassé.
 ## Commandes de vérification
 
 ```powershell
-npm run check     # node --check plugin.js
+npm run check     # node --check desktop/plugin.js
 npm run smoke     # node tests/smoke.mjs
 ```
 
@@ -39,7 +39,7 @@ Le smoke vérifie le nombre de contributions, la présence des quatre zones, `pl
 
 ## Pièges connus
 
-- `tests/smoke.mjs` lit `plugin.js` **comme du texte** et retire trois lignes d'import par
+- `tests/smoke.mjs` lit `desktop/plugin.js` **comme du texte** et retire quatre lignes d'import par
   correspondance exacte. Ajouter un import, ou reformater ces lignes, casse le harnais.
 - Une contribution placée dans une zone inconnue de Hermes est ignorée **silencieusement** : le
   smoke atteste la forme, pas que l'application l'affiche. Le dire dans `gaps`.

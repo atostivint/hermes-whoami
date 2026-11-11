@@ -4,13 +4,21 @@ Ce que l'utilisateur voit : la pastille du composeur et le point de la barre d'�
 
 ## Fichiers possédés
 
-- `plugin.js` — `dot()` (≈ 139), `ComposerPill()` (≈ 153), `StatusDot()` (≈ 202), plus les jetons
+- `desktop/plugin.js` — `dot()` (≈ 191), `ComposerPill()` (≈ 205), `StatusDot()` (≈ 254), plus les jetons
   de style en tête de fichier (`ACCENT`, `TEXT_SECONDARY`, `TEXT_TERTIARY`, `STROKE_SECONDARY`).
 
 ## Comportement attendu
 
 - La pastille affiche **le nom du profil actif** (`host.state.profile`, normalisé) et prend la
   couleur décidée par le domaine `prefs-pane` — jamais une couleur en dur ici.
+- Depuis le 2026-11-11 cette couleur est, par défaut, **la couleur d'identité du client** (celle du
+  carré du rail et du tag de profil) : une valeur `hsl(…)` et non plus un hex de palette. `dot()` ne
+  doit donc jamais supposer un format hexadécimal ; `backgroundColor` accepte la chaîne telle quelle.
+- L'étiquette de couleur (`label`) vaut `accent`, un nom de palette, un hex ou la chaîne `hsl(…)`
+  renvoyée par le client : elle est interpolée dans les notifications, donc jamais de jeton interne
+  type `client`.
+- Un profil dont le nom trimé est vide ou `default` affiche `mono` (`#9CA3AF`), le neutre du plugin,
+  parce que le client ne colore pas le profil racine.
 - Profil nul (scope « tous les profils ») → pastille grise `no profile`. Un clic dans cet état
   émet `host.notify({ kind: 'warning', message: … })` qui explique qu'une nouvelle session exige un
   profil explicite.

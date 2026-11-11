@@ -10,9 +10,9 @@ Le harnais qui prouve que le plugin fonctionne **sans** Hermes Desktop, et la CI
 
 ## Comment le harnais fonctionne (à lire avant de le modifier)
 
-`tests/smoke.mjs` lit `plugin.js` **comme du texte**, puis :
+`tests/smoke.mjs` lit `desktop/plugin.js` **comme du texte**, puis :
 
-1. retire trois lignes d'import par correspondance littérale exacte
+1. retire quatre lignes d'import par correspondance littérale exacte
    (`@hermes/plugin-sdk`, `react`, `react/jsx-runtime`) ;
 2. remplace `export default` par `const plugin =` ;
 3. évalue le tout par `new Function('host', 'useValue', 'useSyncExternalStore', 'jsx', src + 'return plugin;')`
@@ -23,23 +23,30 @@ Le harnais qui prouve que le plugin fonctionne **sans** Hermes Desktop, et la CI
 
 Conséquences directes :
 
-- **Ajouter un import dans `plugin.js` casse le harnais** (ligne d'import laissée dans le corps de
+- **Ajouter un import dans `desktop/plugin.js` casse le harnais** (ligne d'import laissée dans le corps de
   la fonction). Toute nouvelle dépendance d'import exige une ligne de retrait correspondante ici.
 - **Utiliser un hook non doublé casse le harnais** : seuls `host`, `useValue`,
   `useSyncExternalStore` et `jsx` existent dans la portée. Tout ajout doit être passé en paramètre.
-- Le fichier n'est pas un bundle : `plugin.js` doit rester un module autonome d'un seul fichier.
+- Le fichier n'est pas un bundle : `desktop/plugin.js` doit rester un module autonome d'un seul fichier.
 
 ## Commandes exactes
 
 ```powershell
-npm run check     # node --check plugin.js — parse sans exécuter
+npm run check     # node --check desktop/plugin.js — parse sans exécuter
 npm run smoke     # node tests/smoke.mjs — harnais hors Hermes
 ```
 
 Sortie attendue aujourd'hui : une ligne `PASS ...` par vérification, puis
-`SMOKE: 29 passed, 0 failed`. Code de sortie non nul en cas d'échec.
+`SMOKE: 37 passed, 0 failed`. Code de sortie non nul en cas d'échec.
 
-CI : `node 22`, sur `push` et `pull_request` vers `master`/`main`, exécute `node --check plugin.js`
+Depuis le 2026-11-11 le harnais retire **quatre** lignes d'import (la ligne d'espace de noms
+`import * as hermesSdk from '@hermes/plugin-sdk';` s'est ajoutée aux trois d'origine) et passe deux
+doubles de plus à `new Function` : `hermesSdk` (dont `profileColor` reproduit la formule du client,
+`hash * 31 >>> 0`, `% 360`, `hsl(h 68% 58%)`) et `localStorage` (`getItem`/`setItem`/`removeItem` sur
+une `Map`). `loadContributions(sdk, clientStore)` évalue une copie fraîche du module pour les checks
+qui ont besoin d'un état vierge ou d'un SDK amputé.
+
+CI : `node 22`, sur `push` et `pull_request` vers `master`/`main`, exécute `node --check desktop/plugin.js`
 puis `npm run smoke`. Pas de `npm install` : aucune dépendance.
 
 ## Règles

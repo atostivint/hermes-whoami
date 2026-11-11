@@ -23,7 +23,7 @@ Une tâche n'est acceptée que si son bloc PROOF contient :
 
 1. `git diff --stat` — les fichiers réellement modifiés.
 2. **Chaque commande exécutée, avec son code de sortie et la sortie pertinente.** Minimum :
-   - `npm run check` (soit `node --check plugin.js`)
+   - `npm run check` (soit `node --check desktop/plugin.js`)
    - `npm run smoke` (soit `node tests/smoke.mjs`)
 3. Les tests exécutés **par leur nom** pour tout comportement nouveau (les lignes `PASS ...` du
    smoke, ou le nom du `check(...)` ajouté).
@@ -49,7 +49,7 @@ Un résumé sans commandes ni diff est rejeté une fois. La deuxième fois, la t
 ## Règles de périmètre
 
 - Le brief liste **les fichiers exacts**. Aucun fichier hors de cette liste ne peut être touché.
-- **`plugin.js` est le point de sérialisation** : une seule tâche active à la fois dessus, même si
+- **`desktop/plugin.js` est le point de sérialisation** : une seule tâche active à la fois dessus, même si
   deux tâches ne touchent pas les mêmes lignes (le fichier fait 456 lignes et le smoke le lit en
   entier). Les tâches parallèles autorisées portent sur des fichiers disjoints : `tests/smoke.mjs`,
   `.github/workflows/smoke.yml`, `plugin.yaml`, `README.md`, `CHANGELOG.md`, `package.json`.

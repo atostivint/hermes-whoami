@@ -8,16 +8,16 @@ sans dépendance. La mémoire d'orchestration vit dans `.orchestrator/`.
 
 | Chemin | Contenu |
 |---|---|
-| `plugin.js` | tout le plugin : constantes, store de préférences, dérivations de couleur, composants, `register` |
+| `desktop/plugin.js` | tout le plugin : constantes, store de préférences, dérivations de couleur, composants, `register` |
 | `plugin.yaml` | manifeste lu par Hermes (nom, version, `requires_hermes`) |
-| `tests/smoke.mjs` | harnais hors Hermes : lit `plugin.js` **comme du texte** et l'exécute avec des doublures |
+| `tests/smoke.mjs` | harnais hors Hermes : lit `desktop/plugin.js` **comme du texte** et l'exécute avec des doublures |
 | `.github/workflows/smoke.yml` | CI : `node 22`, `node --check` puis `npm run smoke` |
 | `.opencode/domains/*.md` | périmètres de propriété (un fichier par surface) |
 | `.orchestrator/*` | politique, registre, boîte de réception, décisions |
 
-Carte du fichier unique : `PRESETS`/constantes (≈ 5-22), store et dérivations (≈ 24-137), `dot`/
-`ComposerPill`/`StatusDot` (≈ 139-236), panneau `ModeRow`/`ProfileRow`/`WhoamiPane` (≈ 237-392),
-`export default`/`register` (≈ 394-456).
+Carte du fichier unique `desktop/plugin.js` : `PRESETS`/constantes (≈ 8-27), store et dérivations
+(≈ 29-189), `dot`/`ComposerPill`/`StatusDot` (≈ 191-287), panneau
+`ModeRow`/`ProfileRow`/`WhoamiPane` (≈ 289-444), `export default`/`register` (≈ 446-508).
 
 ## L'utilisateur et la langue
 
@@ -32,17 +32,17 @@ Carte du fichier unique : `PRESETS`/constantes (≈ 5-22), store et dérivations
 Il n'y a **pas d'étape de build**. Le code est chargé tel quel par Hermes.
 
 ```powershell
-npm run check   # node --check plugin.js — parse sans exécuter
+npm run check   # node --check desktop/plugin.js — parse sans exécuter
 npm run smoke   # node tests/smoke.mjs — harnais hors Hermes
 ```
 
 - Node 22 ou plus récent (la CI utilise 22 ; la machine locale est en 26.4).
 - **Aucun `npm install`** : `package.json` ne déclare aucune dépendance, et il ne doit pas en
   apparaître sans décision de l'utilisateur. Ne pas créer de `node_modules/` ni de lockfile.
-- Un seul agent à la fois sur `plugin.js`. Les tests sont rapides, mais un worker qui lance le smoke
+- Un seul agent à la fois sur `desktop/plugin.js`. Les tests sont rapides, mais un worker qui lance le smoke
   pendant qu'un autre édite le fichier lit un état incohérent.
 - Les deux commandes doivent rester vertes. `npm run smoke` finit par
-  `SMOKE: 29 passed, 0 failed` aujourd'hui ; le total monte à chaque nouveau `check(...)`.
+  `SMOKE: 37 passed, 0 failed` aujourd'hui ; le total monte à chaque nouveau `check(...)`.
 
 ## Interdits
 
@@ -57,7 +57,7 @@ npm run smoke   # node tests/smoke.mjs — harnais hors Hermes
 
 ## Travail en parallèle
 
-- **Un agent par fichier.** `plugin.js` est un point de sérialisation : une seule tâche active
+- **Un agent par fichier.** `desktop/plugin.js` est un point de sérialisation : une seule tâche active
   dessus, même sur des lignes différentes.
 - Une tâche parallèle n'est légitime que si son périmètre est disjoint (`tests/smoke.mjs`,
   `.github/workflows/smoke.yml`, `plugin.yaml`, `README.md`, `CHANGELOG.md`).
@@ -79,7 +79,7 @@ Un rapport sans preuve est renvoyé une fois, puis clos en échec. Il contient :
 
 - Petit, testé, lisible. Un commentaire explique un **pourquoi**, pas un quoi.
 - Module ES unique, `const` en tête, fonctions pures au milieu, composants à la fin — ordre déjà en
-  place dans `plugin.js`.
+  place dans `desktop/plugin.js`.
 - Couleurs et typographie via les variables CSS de l'application (`var(--ui-...)`), jamais de thème
   recopié.
 - Notifications : `host.notify({ kind, message })`, `kind` valant `info` ou `warning` ; la clé
@@ -89,12 +89,15 @@ Un rapport sans preuve est renvoyé une fois, puis clos en échec. Il contient :
 
 ## Pièges du dépôt
 
-- `tests/smoke.mjs` retire **trois lignes d'import par correspondance exacte** : ajouter un import
-  dans `plugin.js` casse le harnais tant que la ligne de retrait n'est pas ajoutée.
-- Le harnais ne fournit que `host`, `useValue`, `useSyncExternalStore`, `jsx` : tout autre hook doit
-  être doublé.
-- La couleur dérivée d'un profil est déterministe (hash `* 31` sur le nom, modulo sur les palettes) :
-  elle doit rester identique entre deux rendus et deux démarrages.
+- `tests/smoke.mjs` retire **quatre lignes d'import par correspondance exacte**, dont la ligne
+  `import * as hermesSdk from '@hermes/plugin-sdk';` : ajouter un import dans `desktop/plugin.js`
+  casse le harnais tant que la ligne de retrait n'est pas ajoutée.
+- Le harnais ne fournit que `host`, `useValue`, `useSyncExternalStore`, `jsx`, `hermesSdk` et
+  `localStorage` : tout autre hook ou global doit être doublé.
+- La couleur par défaut d'un profil est la couleur d'identité du client (`profileColor`, surcharge
+  `hermes.desktop.profileColors`) ; le hash `* 31` sur le nom, modulo sur les palettes, n'est que le
+  repli quand `profileColor` manque. Elle doit rester identique entre deux rendus et deux
+  démarrages.
 - `host.state.profile` peut être nul (scope « tous les profils ») : la pastille affiche `no profile`
   et le clic émet un avertissement.
 - La version est écrite trois fois (`package.json`, `plugin.yaml`, `CHANGELOG.md`) : les trois

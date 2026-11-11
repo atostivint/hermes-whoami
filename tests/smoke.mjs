@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 
 // This is a test harness reading this repo's own plugin.js, not untrusted input.
-const raw = readFileSync(new URL('../plugin.js', import.meta.url), 'utf8');
+const raw = readFileSync(new URL('../desktop/plugin.js', import.meta.url), 'utf8');
 const src = raw
   .replace("import { host, useValue } from '@hermes/plugin-sdk';", '')
+  .replace("import * as hermesSdk from '@hermes/plugin-sdk';", '')
   .replace("import { useSyncExternalStore } from 'react';", '')
   .replace("import { jsx } from 'react/jsx-runtime';", '')
   .replace('export default', 'const plugin =');
@@ -41,6 +42,32 @@ const jsx = (type, props, ...kids) => {
 
 const storageMap = new Map();
 
+// Mirrors apps/desktop/src/lib/profile-color.ts: (hash * 31 + charCode) >>> 0, then hsl(hue 68% 58%).
+const sdkProfileColor = (name) => {
+  if (typeof name !== 'string' || name.length === 0 || name === 'default') return null;
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return `hsl(${hash % 360} 68% 58%)`;
+};
+
+const hermesSdk = { profileColor: sdkProfileColor };
+
+// Hermes Desktop stores hand-picked colours in localStorage; the plugin reads them through this.
+const clientColorMap = new Map();
+const localStorageDouble = {
+  getItem(key) {
+    return clientColorMap.has(key) ? clientColorMap.get(key) : null;
+  },
+  setItem(key, value) {
+    clientColorMap.set(key, String(value));
+  },
+  removeItem(key) {
+    clientColorMap.delete(key);
+  },
+};
+
 const storage = {
   get(key, fallback) {
     return storageMap.has(key) ? storageMap.get(key) : fallback;
@@ -71,9 +98,45 @@ const build = new Function(
   'useValue',
   'useSyncExternalStore',
   'jsx',
+  'hermesSdk',
+  'localStorage',
   src + '\nreturn plugin;',
 );
-const plugin = build(host, useValue, useSyncExternalStore, jsx);
+const plugin = build(host, useValue, useSyncExternalStore, jsx, hermesSdk, localStorageDouble);
+
+// Evaluate a fresh copy of the module against its own doubles: no shared prefs cache.
+// seededPrefs lets a check hand the module a `whoami.prefs` value the plugin did not normalise.
+function loadContributions(sdk, clientStore, seededPrefs) {
+  const loaded = [];
+  const localCtx = {
+    register(contribution) {
+      loaded.push(contribution);
+      return contribution;
+    },
+    registerMany(list) {
+      for (const contribution of list) loaded.push(contribution);
+    },
+    storage: {
+      get(key, fallback) {
+        return seededPrefs === undefined ? fallback : seededPrefs;
+      },
+      set() {},
+      remove() {},
+    },
+  };
+  const factory = new Function(
+    'host',
+    'useValue',
+    'useSyncExternalStore',
+    'jsx',
+    'hermesSdk',
+    'localStorage',
+    src + '\nreturn plugin;',
+  );
+  const loadedPlugin = factory(host, useValue, useSyncExternalStore, jsx, sdk, clientStore);
+  loadedPlugin.register(localCtx);
+  return (id) => loaded.find((c) => c.id === id).render();
+}
 
 function walk(node, fn) {
   if (node === null || node === undefined || typeof node !== 'object') return;
@@ -183,6 +246,7 @@ check(
 );
 
 const presetLabels = ['mono', 'green', 'cyan', 'violet', 'pink', 'red', 'orange', 'nous'];
+const presetHexes = ['#9CA3AF', '#3ECF8E', '#22D3EE', '#A78BFA', '#F472B6', '#EF4444', '#FB923C', '#6EA8FE'];
 const paneNode = render('settings-pane');
 const swatches = findButtons(paneNode).filter(
   (b) => b.props['aria-label'] !== undefined && presetLabels.includes(b.props['aria-label']),
@@ -256,6 +320,116 @@ check(
     ),
   JSON.stringify(notifications),
 );
+
+// --- client identity colour ---
+// The accent check above left the pane in accent mode; go back to per-profile first.
+const backToPerProfile = findButtons(render('settings-pane')).find((b) => textOf(b).trim() === 'accent');
+backToPerProfile.props.onClick();
+
+const clientExpected = sdkProfileColor('atlas');
+const clientPillColour = colourOf(render('composer-pill'));
+check(
+  'client colour is used when no swatch is chosen',
+  clientPillColour === clientExpected,
+  `${clientPillColour} vs ${clientExpected}`,
+);
+
+clientColorMap.set('hermes.desktop.profileColors', JSON.stringify({ atlas: '#123456' }));
+check(
+  'client override wins over the derived hue',
+  colourOf(render('composer-pill')) === '#123456',
+  String(colourOf(render('composer-pill'))),
+);
+
+const greenClientSwatch = findButtons(render('settings-pane')).find((b) => b.props['aria-label'] === 'green');
+greenClientSwatch.props.onClick();
+check(
+  'explicit swatch still beats the client colour',
+  colourOf(render('composer-pill')) === '#3ECF8E',
+  String(colourOf(render('composer-pill'))),
+);
+
+const resetClientSwatch = findButtons(render('settings-pane')).find((b) => textOf(b).trim() === 'reset');
+resetClientSwatch.props.onClick();
+clientColorMap.clear();
+
+const fallbackPillColour = colourOf(loadContributions({}, localStorageDouble)('composer-pill'));
+check(
+  'missing profileColor falls back to the preset palette',
+  presetHexes.includes(fallbackPillColour) && fallbackPillColour !== sdkProfileColor('atlas'),
+  String(fallbackPillColour),
+);
+
+const firstLoadColour = colourOf(loadContributions(hermesSdk, localStorageDouble)('composer-pill'));
+const secondLoadColour = colourOf(loadContributions(hermesSdk, localStorageDouble)('composer-pill'));
+check(
+  'client colour is stable across two module loads',
+  typeof firstLoadColour === 'string' &&
+    firstLoadColour.length > 0 &&
+    firstLoadColour === secondLoadColour &&
+    firstLoadColour === sdkProfileColor('atlas'),
+  `${firstLoadColour} vs ${secondLoadColour} vs ${sdkProfileColor('atlas')}`,
+);
+
+let missingStorageColour = null;
+let missingStorageThrew = false;
+try {
+  missingStorageColour = colourOf(loadContributions(hermesSdk, undefined)('composer-pill'));
+} catch (error) {
+  missingStorageThrew = true;
+}
+check(
+  'colour resolution survives a missing localStorage',
+  missingStorageThrew === false && missingStorageColour === sdkProfileColor('atlas'),
+  String(missingStorageColour),
+);
+
+profile.set('default');
+clientColorMap.set('hermes.desktop.profileColors', JSON.stringify({ default: '#123456' }));
+const defaultPillColour = colourOf(render('composer-pill'));
+check(
+  'a profile named default stays neutral',
+  defaultPillColour === '#9CA3AF',
+  String(defaultPillColour),
+);
+profile.set('atlas');
+clientColorMap.clear();
+
+// The client trims the name before hashing and before the override lookup, so " atlas " must
+// read as the atlas profile on both paths.
+profile.set(' atlas ');
+const spacedPillColour = colourOf(render('composer-pill'));
+clientColorMap.set('hermes.desktop.profileColors', JSON.stringify({ atlas: '#123456' }));
+const spacedOverrideColour = colourOf(render('composer-pill'));
+clientColorMap.clear();
+profile.set('atlas');
+
+// The pill trims through normaliseProfile before it resolves a colour, so it cannot see this
+// bug: the pane keys its rows by the stored profile name, and a legacy " atlas " key reaches the
+// resolver untrimmed. That row is what the trim in clientColour actually protects.
+const spacedPrefs = { mode: 'profile', colors: { ' atlas ': '' } };
+const rowColour = (node) => {
+  const row = collect(
+    node,
+    (n) => n.type === 'div' && (n.children || []).some((c) => c && c.type === 'span' && textOf(c) === ' atlas '),
+  )[0];
+  return row ? colourOf(row) : null;
+};
+const spacedHueRow = rowColour(loadContributions(hermesSdk, localStorageDouble, spacedPrefs)('settings-pane'));
+clientColorMap.set('hermes.desktop.profileColors', JSON.stringify({ atlas: '#123456' }));
+const spacedOverrideRow = rowColour(loadContributions(hermesSdk, localStorageDouble, spacedPrefs)('settings-pane'));
+clientColorMap.clear();
+
+check(
+  'client colour trims the profile name',
+  spacedPillColour === sdkProfileColor('atlas') &&
+    spacedOverrideColour === '#123456' &&
+    spacedHueRow === sdkProfileColor('atlas') &&
+    spacedOverrideRow === '#123456',
+  `pill ${spacedPillColour} vs ${sdkProfileColor('atlas')}, override ${spacedOverrideColour} vs #123456, row ${spacedHueRow} vs ${sdkProfileColor('atlas')}, row override ${spacedOverrideRow}`,
+);
+profile.set('atlas');
+clientColorMap.clear();
 
 console.log(`SMOKE: ${passed} passed, ${failed} failed`);
 process.exitCode = failed === 0 ? 0 : 1;

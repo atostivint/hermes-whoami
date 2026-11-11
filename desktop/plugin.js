@@ -1,4 +1,7 @@
 import { host, useValue } from '@hermes/plugin-sdk';
+// Namespace import: a named import of a symbol the host build does not export throws at link
+// time and would take the whole plugin down, version guard included.
+import * as hermesSdk from '@hermes/plugin-sdk';
 import { useSyncExternalStore } from 'react';
 import { jsx } from 'react/jsx-runtime';
 
@@ -14,6 +17,8 @@ const PRESETS = [
 ];
 
 const PREFS_KEY = 'whoami.prefs';
+// Hermes Desktop keeps hand-picked profile colours here; the SDK exports no resolver for it.
+const CLIENT_COLORS_KEY = 'hermes.desktop.profileColors';
 const DEFAULT_MODE = 'profile';
 const ACCENT = 'var(--ui-accent)';
 
@@ -23,6 +28,8 @@ const STROKE_SECONDARY = 'var(--ui-stroke-secondary)';
 
 let REGISTER_CTX = null;
 let prefsCache = null;
+let clientOverridesRaw = null;
+let clientOverridesCache = null;
 const listeners = new Set();
 
 function normaliseProfile(value) {
@@ -105,6 +112,50 @@ function usePrefs() {
   return useSyncExternalStore(subscribe, getPrefs, getPrefs);
 }
 
+function readClientOverrides() {
+  // localStorage is absent outside the desktop shell and may hold junk written by hand.
+  try {
+    if (typeof localStorage === 'undefined' || !localStorage) return {};
+    const raw = localStorage.getItem(CLIENT_COLORS_KEY);
+    if (typeof raw !== 'string' || raw.length === 0) return {};
+    // One read per profile row per render: re-parse only when the stored string changes.
+    if (raw === clientOverridesRaw) return clientOverridesCache;
+    let next = {};
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) next = parsed;
+    } catch (error) {
+      // Junk is remembered as empty so a broken key is not re-parsed on every render.
+      next = {};
+    }
+    clientOverridesRaw = raw;
+    clientOverridesCache = next;
+    return next;
+  } catch (error) {
+    return {};
+  }
+}
+
+function clientColour(name) {
+  // Mirrors apps/desktop/src/lib/profile-color.ts: the name is trimmed once, up front.
+  const key = typeof name === 'string' ? name.trim() : '';
+  // The root profile stays neutral even against a hand-picked override: resolveProfileColor
+  // returns null for it before it ever looks in the overrides map.
+  if (key.length === 0 || key === 'default') return null;
+  // Same precedence as the client below that point: an override beats the hue derivation.
+  const override = readClientOverrides()[key];
+  if (typeof override === 'string' && override.length > 0) return override;
+  try {
+    if (typeof hermesSdk.profileColor === 'function') {
+      const value = hermesSdk.profileColor(key);
+      if (typeof value === 'string' && value.length > 0) return value;
+    }
+  } catch (error) {
+    return null;
+  }
+  return null;
+}
+
 function colourFor(prefs, name) {
   if (!name) return { hex: PRESETS[0].hex, label: PRESETS[0].label };
   if (prefs.mode === 'accent') return { hex: ACCENT, label: 'accent' };
@@ -114,7 +165,14 @@ function colourFor(prefs, name) {
     const preset = presetById(stored);
     if (preset) return { hex: preset.hex, label: preset.label };
   }
-  const fallback = presetForProfile(name);
+  // Same colour the rail square shows, so the pill and the app agree on one profile identity.
+  const client = clientColour(name);
+  if (client !== null) return { hex: client, label: client };
+  // The client renders the root profile untagged (no rail colour), so the palette hash must not
+  // invent a hue for it; mono is the plugin's neutral.
+  const key = typeof name === 'string' ? name.trim() : '';
+  if (key.length === 0 || key === 'default') return { hex: PRESETS[0].hex, label: PRESETS[0].label };
+  const fallback = presetForProfile(key);
   return { hex: fallback.hex, label: fallback.label };
 }
 

@@ -28,7 +28,7 @@ Les sessions worker sont des sessions subagent, dont l'`sessionID` est rangé da
    `git worktree list`.
 2. Brief : GOAL / SCOPE (fichiers exacts) / ACCEPTANCE (commandes exactes) / PROOF / STOP.
 3. Un `worker` par tâche indépendante ; en arrière-plan (`background: true`) si les périmètres
-   sont disjoints. Jamais deux workers sur `plugin.js`.
+   sont disjoints. Jamais deux workers sur `desktop/plugin.js`.
 4. Pas de bloc PROOF → renvoi une fois → sinon clôture en échec.
 5. Revue en une passe avec `reviewer` sur le diff courant.
 6. Mise à jour de `registry.md`, `inbox.md` et de la note de domaine.
@@ -36,7 +36,7 @@ Les sessions worker sont des sessions subagent, dont l'`sessionID` est rangé da
 ## Ce qu'il ne faut pas faire
 
 - Laisser l'orchestrateur écrire du code applicatif : c'est le principe même de la configuration.
-- Lancer deux items qui touchent `plugin.js` : c'est un seul fichier, tout se sérialise dessus.
+- Lancer deux items qui touchent `desktop/plugin.js` : c'est un seul fichier, tout se sérialise dessus.
 - Commiter, pousser ou publier sans demande de l'utilisateur.
 - Recopier un état venu d'un autre projet dans `registry.md` ou `inbox.md`.
 
