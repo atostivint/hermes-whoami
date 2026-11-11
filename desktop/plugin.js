@@ -194,8 +194,20 @@ function activeProfileName() {
   }
 }
 
+// React's jsx runtime signature is jsx(type, props, key): children belong in props.children, so a
+// positional child would be swallowed as a key. h() is the only place that packs them.
+function h(type, props, ...children) {
+  const kids = children
+    .flat()
+    .filter((kid) => kid !== null && kid !== undefined && kid !== false);
+  const next = { ...props };
+  if (kids.length === 1) next.children = kids[0];
+  else if (kids.length > 0) next.children = kids;
+  return jsx(type, next);
+}
+
 function dot(colour, size) {
-  return jsx('span', {
+  return h('span', {
     'aria-hidden': 'true',
     style: {
       display: 'inline-block',
@@ -214,7 +226,7 @@ function ComposerPill() {
   const colour = colourFor(prefs, profile);
   const label = profile || 'no profile';
 
-  return jsx(
+  return h(
     'button',
     {
       type: 'button',
@@ -253,7 +265,7 @@ function ComposerPill() {
       },
     },
     dot(colour, '8px'),
-    jsx('span', { style: { fontWeight: 500 } }, label),
+    h('span', { style: { fontWeight: 500 } }, label),
   );
 }
 
@@ -261,7 +273,7 @@ function StatusDot() {
   const profile = normaliseProfile(useValue(host.state.profile));
   const prefs = usePrefs();
   const colour = colourFor(prefs, profile);
-  return jsx(
+  return h(
     'button',
     {
       type: 'button',
@@ -295,7 +307,7 @@ function StatusDot() {
 function ModeRow(props) {
   const prefs = props.prefs;
   const nextMode = prefs.mode === 'accent' ? 'profile' : 'accent';
-  return jsx(
+  return h(
     'div',
     {
       style: {
@@ -307,8 +319,8 @@ function ModeRow(props) {
         borderBottom: `1px solid ${STROKE_SECONDARY}`,
       },
     },
-    jsx('span', { style: { color: TEXT_SECONDARY, fontSize: '11px' } }, 'Mode'),
-    jsx(
+    h('span', { style: { color: TEXT_SECONDARY, fontSize: '11px' } }, 'Mode'),
+    h(
       'button',
       {
         type: 'button',
@@ -333,7 +345,7 @@ function ProfileRow(props) {
   const prefs = props.prefs;
   const name = props.name;
   const current = colourFor(prefs, name);
-  return jsx(
+  return h(
     'div',
     {
       style: {
@@ -344,11 +356,11 @@ function ProfileRow(props) {
         borderBottom: `1px solid ${STROKE_SECONDARY}`,
       },
     },
-    jsx(
+    h(
       'div',
       { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
       dot(current, '8px'),
-      jsx(
+      h(
         'span',
         {
           style: {
@@ -363,11 +375,12 @@ function ProfileRow(props) {
         name,
       ),
     ),
-    jsx(
+    h(
       'div',
       { style: { display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap' } },
       ...PRESETS.map((preset) =>
-        jsx('button', {
+        h('button', {
+          key: preset.id,
           type: 'button',
           'aria-label': preset.label,
           title: preset.label,
@@ -386,7 +399,7 @@ function ProfileRow(props) {
           },
         }),
       ),
-      jsx(
+      h(
         'button',
         {
           type: 'button',
@@ -429,7 +442,7 @@ function WhoamiPane() {
     setPrefs({ mode: mode === 'accent' ? 'accent' : DEFAULT_MODE, colors: getPrefs().colors });
   };
 
-  return jsx(
+  return h(
     'div',
     {
       style: {
@@ -442,10 +455,10 @@ function WhoamiPane() {
         overflowY: 'auto',
       },
     },
-    jsx(ModeRow, { prefs, onChange: setMode }),
+    h(ModeRow, { prefs, onChange: setMode }),
     names.length === 0
-      ? jsx('div', { style: { color: TEXT_TERTIARY, padding: '6px 0' } }, 'no profiles yet')
-      : names.map((name) => jsx(ProfileRow, { key: name, name, prefs, onPick: pick, onReset: reset })),
+      ? h('div', { style: { color: TEXT_TERTIARY, padding: '6px 0' } }, 'no profiles yet')
+      : names.map((name) => h(ProfileRow, { key: name, name, prefs, onPick: pick, onReset: reset })),
   );
 }
 
@@ -467,14 +480,14 @@ export default {
       id: 'composer-pill',
       area: 'composer.actions',
       order: 20,
-      render: () => jsx(ComposerPill, {}),
+      render: () => h(ComposerPill, {}),
     });
 
     ctx.register({
       id: 'status-chip',
       area: 'statusBar.right',
       order: 120,
-      render: () => jsx(StatusDot, {}),
+      render: () => h(StatusDot, {}),
     });
 
     ctx.register({
@@ -508,7 +521,7 @@ export default {
       area: 'panes',
       title: 'Whoami',
       data: { placement: 'right', width: '240px' },
-      render: () => jsx(WhoamiPane, {}),
+      render: () => h(WhoamiPane, {}),
     });
   },
 };

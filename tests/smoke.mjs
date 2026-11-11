@@ -34,11 +34,28 @@ const useValue = (a) => a.get();
 
 const useSyncExternalStore = (sub, get) => get();
 
-const jsx = (type, props, ...kids) => {
-  const children = kids.flat().filter((k) => k !== null && k !== undefined && k !== false);
-  if (typeof type === 'function') return type({ ...props, children });
-  return { type, props: props ?? {}, children };
-};
+// The real runtime is jsx(type, props, key): children belong in props.children, and a third
+// argument is read as a key, not as a child. The double keeps that exact signature, otherwise a
+// positional-child bug in the plugin stays invisible here.
+function normalizeChildren(value) {
+  if (value === undefined || value === null) return [];
+  const list = Array.isArray(value) ? value.flat() : [value];
+  return list.filter((kid) => kid !== null && kid !== undefined && kid !== false);
+}
+
+// onExtraArgument is called when a caller passes a third argument; the suite's own double ignores
+// it, the strict one throws.
+function createJsx(onExtraArgument) {
+  return function jsx(type, props, ...extra) {
+    if (extra.length > 0) onExtraArgument(extra);
+    const given = props ?? {};
+    const children = normalizeChildren(given.children);
+    if (typeof type === 'function') return type({ ...given, children });
+    return { type, props: given, children };
+  };
+}
+
+const jsx = createJsx(() => {});
 
 const storageMap = new Map();
 
@@ -223,6 +240,75 @@ const pill = render('composer-pill');
 check('pill text contains atlas', textOf(pill).includes('atlas'), textOf(pill));
 const pillColour = colourOf(pill);
 check('pill carries a colour', typeof pillColour === 'string' && pillColour.length > 0, String(pillColour));
+
+const pillChildren = Array.isArray(pill.children) ? pill.children : [];
+const pillDot = pillChildren[0];
+const pillLabel = pillChildren[1];
+check(
+  'pill renders a dot and a label',
+  pillChildren.length === 2 &&
+    pillDot &&
+    pillDot.type === 'span' &&
+    typeof pillDot.props.style.backgroundColor === 'string' &&
+    pillLabel &&
+    textOf(pillLabel).trim() === 'atlas',
+  JSON.stringify(pillChildren.map((c) => (c && c.type) || String(c))),
+);
+
+// Same module, stricter runtime: any third argument to jsx is a bug, so this evaluation throws on
+// one and asserts that rendering every contribution stays clean.
+let strictJsxError = null;
+try {
+  const strictJsx = createJsx((extra) => {
+    throw new Error(
+      `jsx received ${extra.length + 2} arguments; children must be passed in props.children`,
+    );
+  });
+  const strictFactory = new Function(
+    'host',
+    'useValue',
+    'useSyncExternalStore',
+    'jsx',
+    'hermesSdk',
+    'localStorage',
+    src + '\nreturn plugin;',
+  );
+  const strictPlugin = strictFactory(
+    host,
+    useValue,
+    useSyncExternalStore,
+    strictJsx,
+    hermesSdk,
+    localStorageDouble,
+  );
+  const strictLoaded = [];
+  strictPlugin.register({
+    register(contribution) {
+      strictLoaded.push(contribution);
+      return contribution;
+    },
+    registerMany(list) {
+      for (const contribution of list) strictLoaded.push(contribution);
+    },
+    storage: {
+      get(key, fallback) {
+        return fallback;
+      },
+      set() {},
+      remove() {},
+    },
+  });
+  for (const contribution of strictLoaded) {
+    if (typeof contribution.render === 'function') contribution.render();
+  }
+} catch (error) {
+  strictJsxError = error;
+}
+check(
+  'jsx double rejects positional children',
+  strictJsxError === null,
+  strictJsxError && strictJsxError.message,
+);
 
 const sameAgain = colourOf(render('composer-pill'));
 check('same profile yields the same colour twice', sameAgain === pillColour, `${pillColour} vs ${sameAgain}`);
