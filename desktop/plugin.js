@@ -17,8 +17,6 @@ const PRESETS = [
 ];
 
 const PREFS_KEY = 'whoami.prefs';
-// Hermes Desktop keeps hand-picked profile colours here; the SDK exports no resolver for it.
-const CLIENT_COLORS_KEY = 'hermes.desktop.profileColors';
 const DEFAULT_MODE = 'profile';
 const ACCENT = 'var(--ui-accent)';
 
@@ -28,8 +26,6 @@ const STROKE_SECONDARY = 'var(--ui-stroke-secondary)';
 
 let REGISTER_CTX = null;
 let prefsCache = null;
-let clientOverridesRaw = null;
-let clientOverridesCache = null;
 const listeners = new Set();
 
 function normaliseProfile(value) {
@@ -112,39 +108,11 @@ function usePrefs() {
   return useSyncExternalStore(subscribe, getPrefs, getPrefs);
 }
 
-function readClientOverrides() {
-  // localStorage is absent outside the desktop shell and may hold junk written by hand.
-  try {
-    if (typeof localStorage === 'undefined' || !localStorage) return {};
-    const raw = localStorage.getItem(CLIENT_COLORS_KEY);
-    if (typeof raw !== 'string' || raw.length === 0) return {};
-    // One read per profile row per render: re-parse only when the stored string changes.
-    if (raw === clientOverridesRaw) return clientOverridesCache;
-    let next = {};
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) next = parsed;
-    } catch (error) {
-      // Junk is remembered as empty so a broken key is not re-parsed on every render.
-      next = {};
-    }
-    clientOverridesRaw = raw;
-    clientOverridesCache = next;
-    return next;
-  } catch (error) {
-    return {};
-  }
-}
-
 function clientColour(name) {
-  // Mirrors apps/desktop/src/lib/profile-color.ts: the name is trimmed once, up front.
+  // The client resolves the colour of the trimmed name, so trim once, up front.
   const key = typeof name === 'string' ? name.trim() : '';
-  // The root profile stays neutral even against a hand-picked override: resolveProfileColor
-  // returns null for it before it ever looks in the overrides map.
+  // The root profile is untagged in the client: it has no identity colour at all.
   if (key.length === 0 || key === 'default') return null;
-  // Same precedence as the client below that point: an override beats the hue derivation.
-  const override = readClientOverrides()[key];
-  if (typeof override === 'string' && override.length > 0) return override;
   try {
     if (typeof hermesSdk.profileColor === 'function') {
       const value = hermesSdk.profileColor(key);
@@ -165,7 +133,8 @@ function colourFor(prefs, name) {
     const preset = presetById(stored);
     if (preset) return { hex: preset.hex, label: preset.label };
   }
-  // Same colour the rail square shows, so the pill and the app agree on one profile identity.
+  // The identity colour the client derives from the profile name: one identity for pill and app.
+  // A colour hand-picked in the rail is not mirrored until the SDK exposes a resolver for it.
   const client = clientColour(name);
   if (client !== null) return { hex: client, label: client };
   // The client renders the root profile untagged (no rail colour), so the palette hash must not

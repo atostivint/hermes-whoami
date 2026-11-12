@@ -49,29 +49,29 @@ Then open the command palette (`Command-K`, or `Ctrl+K` on Windows) and run
 
 ## Colours
 
-The pill takes the profile's identity colour from Hermes Desktop, the same colour the sidebar rail shows, so the two always agree. There is no settings pane and nothing to configure: the plugin ships no colour UI.
+The pill takes the profile's identity colour from Hermes Desktop, the same colour the sidebar rail derives from the profile name, so the two agree. There is no settings pane and nothing to configure: the plugin ships no colour UI.
 
 The colour is resolved in this order, first hit wins — the built-in palette is the last resort:
 
 1. `accent` mode, which paints the pill dot with `var(--ui-accent)` for every profile.
 2. A preset or hex stored for that profile in `whoami.prefs`.
-3. The colour Hermes Desktop itself shows for the profile: a hand-picked override from the rail
-   (`hermes.desktop.profileColors` in `localStorage`), else the hue derived from the profile name.
+3. The identity colour Hermes Desktop derives from the profile name, through the SDK's
+   `profileColor()`.
 4. The built-in eight-colour palette, used when the host build exports no `profileColor`.
+
+A colour picked in the rail's own override is not mirrored: the SDK exposes no resolver for that
+override, so the pill keeps the derived identity colour. Adding that resolver is upstream work.
 
 Steps 1 and 2 stay honoured when an older install left a `whoami.prefs` behind — `{ "mode": "profile", "colors": { "work": "cyan" } }`, in the plugin storage namespace. Nothing in the current version writes that key, so a fresh install always shows the identity colour.
 
-The root profile `default` gets no colour from the client — it renders that profile untagged and
-ignores a hand-picked override for it — so it shows the neutral `mono` dot.
+The root profile `default` gets no colour from the client — it renders that profile untagged — so it
+shows the neutral `mono` dot.
 
 ## Limitations
 
 - **Read-only by design.** The SDK exposes `host.state.profile` but no profile-switch verb, so Whoami reports the scope and never changes it.
 - Requires Hermes Desktop 0.21.5 or newer for the `composer.actions` area the pill is mounted in.
 - If the pill shows a stale profile after a switch, open an issue with the values of `host.state.profile`.
-- A colour picked in the rail does not repaint an already-mounted pill until the next render
-  (profile switch or reload): a same-document `localStorage` write fires no event, and the plugin
-  reads that key only while rendering.
 
 ## Development
 

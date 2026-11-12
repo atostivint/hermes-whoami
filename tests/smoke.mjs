@@ -71,20 +71,6 @@ const sdkProfileColor = (name) => {
 
 const hermesSdk = { profileColor: sdkProfileColor };
 
-// Hermes Desktop stores hand-picked colours in localStorage; the plugin reads them through this.
-const clientColorMap = new Map();
-const localStorageDouble = {
-  getItem(key) {
-    return clientColorMap.has(key) ? clientColorMap.get(key) : null;
-  },
-  setItem(key, value) {
-    clientColorMap.set(key, String(value));
-  },
-  removeItem(key) {
-    clientColorMap.delete(key);
-  },
-};
-
 const storage = {
   get(key, fallback) {
     return storageMap.has(key) ? storageMap.get(key) : fallback;
@@ -116,14 +102,13 @@ const build = new Function(
   'useSyncExternalStore',
   'jsx',
   'hermesSdk',
-  'localStorage',
   src + '\nreturn plugin;',
 );
-const plugin = build(host, useValue, useSyncExternalStore, jsx, hermesSdk, localStorageDouble);
+const plugin = build(host, useValue, useSyncExternalStore, jsx, hermesSdk);
 
 // Evaluate a fresh copy of the module against its own doubles: no shared prefs cache.
 // seededPrefs lets a check hand the module a `whoami.prefs` value the plugin did not normalise.
-function loadContributions(sdk, clientStore, seededPrefs) {
+function loadContributions(sdk, seededPrefs) {
   const loaded = [];
   const localCtx = {
     register(contribution) {
@@ -147,10 +132,9 @@ function loadContributions(sdk, clientStore, seededPrefs) {
     'useSyncExternalStore',
     'jsx',
     'hermesSdk',
-    'localStorage',
     src + '\nreturn plugin;',
   );
-  const loadedPlugin = factory(host, useValue, useSyncExternalStore, jsx, sdk, clientStore);
+  const loadedPlugin = factory(host, useValue, useSyncExternalStore, jsx, sdk);
   loadedPlugin.register(localCtx);
   return (id) => loaded.find((c) => c.id === id).render();
 }
@@ -264,7 +248,6 @@ try {
     'useSyncExternalStore',
     'jsx',
     'hermesSdk',
-    'localStorage',
     src + '\nreturn plugin;',
   );
   const strictPlugin = strictFactory(
@@ -273,7 +256,6 @@ try {
     useSyncExternalStore,
     strictJsx,
     hermesSdk,
-    localStorageDouble,
   );
   const strictLoaded = [];
   strictPlugin.register({
@@ -330,7 +312,7 @@ const presetHexes = ['#9CA3AF', '#3ECF8E', '#22D3EE', '#A78BFA', '#F472B6', '#EF
 // keep honouring `mode` and `colors`, so the checks seed the key instead of clicking swatch
 // buttons that no longer exist.
 const seededPill = (prefs, sdk) =>
-  colourOf(loadContributions(sdk || hermesSdk, localStorageDouble, prefs)('composer-pill'));
+  colourOf(loadContributions(sdk || hermesSdk, prefs)('composer-pill'));
 const greenPrefs = { mode: 'profile', colors: { atlas: 'green' } };
 
 const originalColour = pillColour;
@@ -392,30 +374,22 @@ check(
   `${clientPillColour} vs ${clientExpected}`,
 );
 
-clientColorMap.set('hermes.desktop.profileColors', JSON.stringify({ atlas: '#123456' }));
-check(
-  'client override wins over the derived hue',
-  colourOf(render('composer-pill')) === '#123456',
-  String(colourOf(render('composer-pill'))),
-);
-
 const greenClientColour = seededPill(greenPrefs);
 check(
   'explicit swatch still beats the client colour',
   greenClientColour === '#3ECF8E',
   String(greenClientColour),
 );
-clientColorMap.clear();
 
-const fallbackPillColour = colourOf(loadContributions({}, localStorageDouble)('composer-pill'));
+const fallbackPillColour = colourOf(loadContributions({})('composer-pill'));
 check(
   'missing profileColor falls back to the preset palette',
   presetHexes.includes(fallbackPillColour) && fallbackPillColour !== sdkProfileColor('atlas'),
   String(fallbackPillColour),
 );
 
-const firstLoadColour = colourOf(loadContributions(hermesSdk, localStorageDouble)('composer-pill'));
-const secondLoadColour = colourOf(loadContributions(hermesSdk, localStorageDouble)('composer-pill'));
+const firstLoadColour = colourOf(loadContributions(hermesSdk)('composer-pill'));
+const secondLoadColour = colourOf(loadContributions(hermesSdk)('composer-pill'));
 check(
   'client colour is stable across two module loads',
   typeof firstLoadColour === 'string' &&
@@ -425,21 +399,14 @@ check(
   `${firstLoadColour} vs ${secondLoadColour} vs ${sdkProfileColor('atlas')}`,
 );
 
-let missingStorageColour = null;
-let missingStorageThrew = false;
-try {
-  missingStorageColour = colourOf(loadContributions(hermesSdk, undefined)('composer-pill'));
-} catch (error) {
-  missingStorageThrew = true;
-}
+// Private app storage can change without notice, so the plugin must not read it at all.
 check(
-  'colour resolution survives a missing localStorage',
-  missingStorageThrew === false && missingStorageColour === sdkProfileColor('atlas'),
-  String(missingStorageColour),
+  'no private app storage is read',
+  !src.includes('localStorage'),
+  'desktop/plugin.js references localStorage',
 );
 
 profile.set('default');
-clientColorMap.set('hermes.desktop.profileColors', JSON.stringify({ default: '#123456' }));
 const defaultPillColour = colourOf(render('composer-pill'));
 check(
   'a profile named default stays neutral',
@@ -447,24 +414,17 @@ check(
   String(defaultPillColour),
 );
 profile.set('atlas');
-clientColorMap.clear();
 
-// The client trims the name before hashing and before the override lookup, so " atlas " must
-// read as the atlas profile on both paths.
+// The client trims the name before hashing it, so " atlas " must read as the atlas profile.
 profile.set(' atlas ');
 const spacedPillColour = colourOf(render('composer-pill'));
-clientColorMap.set('hermes.desktop.profileColors', JSON.stringify({ atlas: '#123456' }));
-const spacedOverrideColour = colourOf(render('composer-pill'));
-clientColorMap.clear();
 profile.set('atlas');
 
 check(
   'client colour trims the profile name',
-  spacedPillColour === sdkProfileColor('atlas') && spacedOverrideColour === '#123456',
-  `pill ${spacedPillColour} vs ${sdkProfileColor('atlas')}, override ${spacedOverrideColour} vs #123456`,
+  spacedPillColour === sdkProfileColor('atlas'),
+  `${spacedPillColour} vs ${sdkProfileColor('atlas')}`,
 );
-profile.set('atlas');
-clientColorMap.clear();
 
 console.log(`SMOKE: ${passed} passed, ${failed} failed`);
 process.exitCode = failed === 0 ? 0 : 1;

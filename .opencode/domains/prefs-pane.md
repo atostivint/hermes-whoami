@@ -8,7 +8,7 @@ Préférences persistées, couleurs déterministes, et le panneau de réglages �
   `DEFAULT_MODE = 'profile'`, `ACCENT = 'var(--ui-accent)'`.
 - `desktop/plugin.js` — le store et les dérivations (≈ 29-189) : `normaliseProfile`, `hashProfile`,
   `presetForProfile`, `presetById`, `normalisePrefs`, `emit`, `subscribe`, `getPrefs`, `setPrefs`,
-  `usePrefs`, `readClientOverrides`, `clientColour`, `colourFor`, `profileNames`,
+  `usePrefs`, `clientColour`, `colourFor`, `profileNames`,
   `activeProfileName`.
 - `desktop/plugin.js` — le panneau (≈ 289-444) : `ModeRow`, `ProfileRow`, `WhoamiPane`.
 
@@ -22,15 +22,14 @@ Préférences persistées, couleurs déterministes, et le panneau de réglages �
 - Ordre de résolution de `colourFor` (décidé le 2026-11-11, ne pas réordonner sans arbitrage) :
   profil nul → `mono` ; `mode: "accent"` → `var(--ui-accent)` ; choix explicite dans
   `prefs.colors[nom]` (hex ou identifiant de palette) ; puis **couleur d'identité du client**
-  (`readClientOverrides` sur `hermes.desktop.profileColors`, sinon `hermesSdk.profileColor`) ;
-  nom vide ou `default` → `mono`, comme le rendu « untagged » du client ; sinon la palette dérivée,
-  repli des vieux hôtes sans `profileColor`.
-- `clientColour` trime le nom **une fois**, en tête, et refuse `default` **avant** de lire les
-  overrides : c'est l'ordre de `resolveProfileColor` dans le client, où le profil racine reste neutre
-  même si une couleur traîne dans la map.
-- `readClientOverrides` mémoïse sur la chaîne brute et renvoie `{}` pour une clé absente, un JSON
-  invalide ou un `localStorage` absent : jamais d'exception, jamais de `JSON.parse` par ligne de
-  profil.
+  (`hermesSdk.profileColor`) ; nom vide ou `default` → `mono`, comme le rendu « untagged » du
+  client ; sinon la palette dérivée, repli des vieux hôtes sans `profileColor`.
+- `clientColour` trime le nom **une fois**, en tête, puis refuse `default` : c'est l'ordre de
+  `profileColor` dans le client, où le profil racine reste neutre.
+- **Ne jamais lire le stockage privé du client** (`localStorage`, `hermes.desktop.profileColors`) :
+  c'était le cas jusqu'au 2026-11-11, retiré à la demande de l'ingénieur principal — une clé interne
+  peut changer sans préavis. Le smoke le refuse (`no private app storage is read`). Refléter une
+  couleur choisie dans le rail exige un résolveur côté SDK, donc un changement en amont.
 - « reset » supprime l'entrée de la palette pour ce profil ; la couleur d'identité revient.
 - L'import `import * as hermesSdk from '@hermes/plugin-sdk';` est un import d'espace de noms
   **exprès** : un import nommé d'un symbole absent de l'hôte échoue au link et tuerait le plugin,
@@ -48,12 +47,11 @@ npm run smoke
 Assertions concernées : huit pastilles trouvées par leur attribut d'accessibilité, clic sur `green`
 → `#3ECF8E` et `storage.colors.atlas === 'green'`, `reset` restaure la couleur d'origine et supprime
 la clé, bouton de mode → `var(--ui-accent)`, deux profils différents peuvent différer de couleur.
-Depuis le 2026-11-11, sept checks de plus portent la chaîne de couleur : `client colour is used when
-no swatch is chosen`, `client override wins over the derived hue`, `explicit swatch still beats the
-client colour`, `missing profileColor falls back to the preset palette`, `colour resolution survives
-a missing localStorage`, `a profile named default stays neutral`, `client colour trims the profile
-name`, `client colour is stable across two module loads`. Total attendu :
-`SMOKE: 37 passed, 0 failed`.
+Depuis le 2026-11-11, les checks qui portent la chaîne de couleur sont : `client colour is used when
+no swatch is chosen`, `explicit swatch still beats the client colour`, `missing profileColor falls
+back to the preset palette`, `a profile named default stays neutral`, `client colour trims the
+profile name`, `client colour is stable across two module loads`, plus `no private app storage is
+read`. Total attendu : `SMOKE: 30 passed, 0 failed`.
 
 ## Pièges connus
 
@@ -73,8 +71,7 @@ name`, `client colour is stable across two module loads`. Total attendu :
 ## Fils ouverts
 
 - Aucune migration de préférences n'existe : si les identifiants changent, en écrire une.
-- La propagation d'un recoloriage fait dans le client n'est pas instantanée : `localStorage.setItem`
-  dans le même document ne déclenche aucun événement `storage`, donc pas d'`emit()`. La pastille se
-  met à jour au prochain rendu (changement de profil, panneau). Non vérifié dans Hermes Desktop.
-- `profileColor` et la clé `hermes.desktop.profileColors` viennent du client, pas d'un contrat
-  documenté du SDK : si l'un des deux bouge, la pastille retombe sur la palette dérivée sans erreur.
+- Une couleur choisie dans le rail n'est plus reflétée du tout : c'était le prix du retrait de la
+  clé privée. Il faut un résolveur exporté par le SDK (travail amont) pour la retrouver.
+- `profileColor` vient du client, pas d'un contrat documenté du SDK : si l'export disparaît ou change
+  de signature, la pastille retombe sur la palette dérivée sans erreur.
