@@ -1,6 +1,6 @@
 # Whoami
 
-A Hermes Desktop plugin that shows which Hermes profile the composer will create a new session on.
+One of four small Hermes Agent tools built to make daily use practical on simple, affordable setups. Whoami shows which Hermes profile the composer will create a new session on, so you never have to guess.
 
 ## What it does
 
