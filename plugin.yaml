@@ -1,6 +1,6 @@
 name: whoami
 version: 0.1.0
-description: Coloured pill in the Hermes Desktop composer showing which profile a new session will use.
+description: A coloured pill in the Hermes Desktop composer showing which profile a new session will use. Read-only: it reports the active scope and never switches profiles.
 author: atostivint
 license: MIT
 requires_hermes: ">=0.21.5"

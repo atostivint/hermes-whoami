@@ -1,6 +1,6 @@
 # Whoami
 
-A Hermes Desktop plugin that shows which Hermes profile the composer will create a new session on.
+A Hermes Desktop plugin that shows which Hermes profile the composer will create a new session on. The pill reads the live profile state, so you know the target before you send anything.
 
 ## What it does
 
