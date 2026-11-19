@@ -1,6 +1,6 @@
 name: whoami
 version: 0.1.0
-description: Coloured pill in the Hermes Desktop composer showing which profile a new session will use.
+description: One of four small Hermes Agent tools for simple, affordable setups. Coloured pill in the Hermes Desktop composer showing which profile a new session will use.
 author: atostivint
 license: MIT
 requires_hermes: ">=0.21.5"
